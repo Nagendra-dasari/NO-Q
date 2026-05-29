@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>NO-Q Smart Cart</title>
+
+<style>
+
+body{
+    font-family:Arial,sans-serif;
+    background:#f5f5f5;
+    margin:0;
+    padding:20px;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+}
+
+h1{
+    text-align:center;
+}
+
+#liveWeight{
+    font-size:60px;
+    color:blue;
+    font-weight:bold;
+}
+
+#status{
+    font-size:24px;
+    font-weight:bold;
+}
+
+input{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    box-sizing:border-box;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    font-size:16px;
+    cursor:pointer;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    border-bottom:1px solid #ddd;
+    padding:10px;
+    text-align:left;
+}
+
+.summary{
+    font-size:18px;
+    margin-top:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>NO-Q Smart Cart</h1>
+
+    <div class="card">
+
+        <h2>Live Cart Weight</h2>
+
+        <div id="liveWeight">
+            Connecting...
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <h2>Verification Status</h2>
+
+        <p>
+            Expected Weight:
+            <b><span id="expectedWeight">0</span> g</b>
+        </p>
+
+        <p>
+            Difference:
+            <b><span id="difference">0</span> g</b>
+        </p>
+
+        <p id="status">
+            Waiting...
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h2>Add Product</h2>
+
+        <input
+            type="text"
+            id="name"
+            placeholder="Product Name">
+
+        <input
+            type="number"
+            id="price"
+            placeholder="Price">
+
+        <input
+            type="number"
+            id="weight"
+            placeholder="Weight (g)">
+
+        <button onclick="addProduct()">
+            Add Product
+        </button>
+
+    </div>
+
+    <div class="card">
+
+        <h2>Cart Items</h2>
+
+        <table id="cartTable">
+
+            <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Weight</th>
+            </tr>
+
+        </table>
+
+        <div class="summary">
+            Total Price:
+            ₹<span id="totalPrice">0</span>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+// ESP32 IP
+const ESP_IP = "10.57.110.213";
+
+let expectedWeight = 0;
+let totalPrice = 0;
+
+// Fetch live weight
+
+async function fetchWeight(){
+
+    try{
+
+        const response =
+        await fetch(
+            `http://${ESP_IP}/weight`
+        );
+
+        const actualWeight =
+        parseFloat(await response.text());
+
+        document.getElementById(
+            "liveWeight"
+        ).innerHTML =
+        actualWeight.toFixed(2) + " g";
+
+        verifyWeight(actualWeight);
+
+    }
+    catch(err){
+
+        document.getElementById(
+            "liveWeight"
+        ).innerHTML =
+        "Disconnected";
+
+    }
+}
+
+setInterval(fetchWeight,1000);
+
+// Add Product
+
+function addProduct(){
+
+    const name =
+    document.getElementById("name").value;
+
+    const price =
+    Number(
+        document.getElementById("price").value
+    );
+
+    const weight =
+    Number(
+        document.getElementById("weight").value
+    );
+
+    if(
+        !name ||
+        !price ||
+        !weight
+    ){
+        alert("Fill all fields");
+        return;
+    }
+
+    expectedWeight += weight;
+    totalPrice += price;
+
+    document.getElementById(
+        "expectedWeight"
+    ).innerHTML =
+    expectedWeight.toFixed(2);
+
+    document.getElementById(
+        "totalPrice"
+    ).innerHTML =
+    totalPrice.toFixed(2);
+
+    const row =
+    document.getElementById(
+        "cartTable"
+    ).insertRow();
+
+    row.insertCell(0).innerHTML = name;
+    row.insertCell(1).innerHTML = "₹" + price;
+    row.insertCell(2).innerHTML = weight + " g";
+
+    document.getElementById("name").value="";
+    document.getElementById("price").value="";
+    document.getElementById("weight").value="";
+}
+
+// Verify Weight
+
+function verifyWeight(actualWeight){
+
+    const diff =
+    Math.abs(
+        actualWeight -
+        expectedWeight
+    );
+
+    document.getElementById(
+        "difference"
+    ).innerHTML =
+    diff.toFixed(2);
+
+    if(expectedWeight === 0){
+
+        document.getElementById(
+            "status"
+        ).innerHTML =
+        "Cart Empty";
+
+        document.getElementById(
+            "status"
+        ).style.color =
+        "black";
+
+        return;
+    }
+
+    if(diff <= 10){
+
+        document.getElementById(
+            "status"
+        ).innerHTML =
+        "✓ VERIFIED";
+
+        document.getElementById(
+            "status"
+        ).style.color =
+        "green";
+
+    }else{
+
+        document.getElementById(
+            "status"
+        ).innerHTML =
+        "⚠ TAMPERING DETECTED";
+
+        document.getElementById(
+            "status"
+        ).style.color =
+        "red";
+    }
+}
+
+</script>
+
+</body>
+</html>
